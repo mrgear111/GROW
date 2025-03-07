@@ -155,6 +155,8 @@ export default function Home() {
 
   const handleToggleComplete = async (id: number, completed: boolean) => {
     try {
+      console.log(`Toggling task ${id} to ${completed ? 'completed' : 'incomplete'}`);
+      
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'PATCH',
         headers: {
@@ -163,13 +165,18 @@ export default function Home() {
         body: JSON.stringify({ completed }),
       });
 
+      console.log('Response status:', response.status);
+      
       // Check content type to handle non-JSON responses
       const contentType = response.headers.get('content-type');
+      console.log('Content type:', contentType);
+      
       if (!contentType || !contentType.includes('application/json')) {
         throw new Error('Server returned an invalid response format');
       }
 
       const data = await response.json();
+      console.log('Response data:', data);
       
       if (!response.ok) {
         throw new Error(data.error || 'Failed to update task');
