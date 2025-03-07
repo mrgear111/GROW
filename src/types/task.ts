@@ -6,6 +6,8 @@ export interface Task {
   category_id: number | null;
   priority: 'low' | 'medium' | 'high';
   due_date: string | null;
+  category_name?: string | null;
+  category_color?: string | null;
 }
 
 export interface Category {

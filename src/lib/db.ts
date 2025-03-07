@@ -14,7 +14,7 @@ try {
 }
 
 // Initialize database with error handling
-let db;
+let db: Database.Database;
 try {
   const dbPath = join(dataDir, 'tasks.db');
   db = new Database(dbPath);
@@ -69,7 +69,7 @@ for (const category of defaultCategories) {
 // Check if tables have the correct structure
 try {
   // Verify tasks table has all required columns
-  const taskColumns = db.prepare("PRAGMA table_info(tasks)").all();
+  const taskColumns = db.prepare("PRAGMA table_info(tasks)").all() as Array<{ name: string }>;
   const requiredColumns = ['id', 'title', 'completed', 'created_at', 'category_id', 'priority', 'due_date'];
   
   const missingColumns = requiredColumns.filter(col => 

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Task Tracker",
+  title: "Daksh's TaskTracker",
   description: "A simple app to track your tasks",
 };
 
