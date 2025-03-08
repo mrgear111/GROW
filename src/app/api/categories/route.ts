@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
+import { getCategories } from '@/lib/firebaseDb';
 
 export async function GET() {
   try {
-    const categories = db.prepare('SELECT * FROM categories ORDER BY name').all();
+    const categories = await getCategories();
     return NextResponse.json(categories);
   } catch (error) {
     console.error('Error fetching categories:', error);

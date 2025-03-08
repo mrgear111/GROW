@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import { getTasks, addTask } from '@/lib/firebaseDb';
 
 // GET all tasks
 export async function GET(request: NextRequest) {
@@ -8,42 +8,18 @@ export async function GET(request: NextRequest) {
     const categoryId = searchParams.get('categoryId');
     const completed = searchParams.get('completed');
     
-    let query = `
-      SELECT t.*, c.name as category_name, c.color as category_color 
-      FROM tasks t
-      LEFT JOIN categories c ON t.category_id = c.id
-      WHERE 1=1
-    `;
+    const filters: { categoryId?: string; completed?: boolean } = {};
     
-    const params: any[] = [];
-    
-    if (categoryId && !isNaN(Number(categoryId))) {
-      query += ` AND t.category_id = ?`;
-      params.push(Number(categoryId));
+    if (categoryId) {
+      filters.categoryId = categoryId;
     }
     
     if (completed !== null) {
-      query += ` AND t.completed = ?`;
-      params.push(completed === 'true' ? 1 : 0);
+      filters.completed = completed === 'true';
     }
     
-    query += ` ORDER BY 
-      CASE 
-        WHEN t.due_date IS NULL THEN 1 
-        ELSE 0 
-      END,
-      t.due_date ASC,
-      t.created_at DESC
-    `;
-    
-    // Use try-catch specifically for the database query
-    try {
-      const tasks = db.prepare(query).all(...params);
-      return NextResponse.json(tasks);
-    } catch (dbError) {
-      console.error('Database error fetching tasks:', dbError);
-      return NextResponse.json({ error: 'Database error fetching tasks' }, { status: 500 });
-    }
+    const tasks = await getTasks(filters);
+    return NextResponse.json(tasks);
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return NextResponse.json({ 
@@ -79,29 +55,13 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Use a transaction to ensure data consistency
-    const stmt = db.prepare(`
-      INSERT INTO tasks (title, completed, category_id, priority, due_date) 
-      VALUES (?, 0, ?, ?, ?)
-    `);
-    
-    const result = stmt.run(
-      title.trim(), 
-      category_id || null, 
-      taskPriority,
-      formattedDueDate
-    );
-    
-    if (!result.lastInsertRowid) {
-      throw new Error('Failed to insert task');
-    }
-    
-    const newTask = db.prepare(`
-      SELECT t.*, c.name as category_name, c.color as category_color 
-      FROM tasks t
-      LEFT JOIN categories c ON t.category_id = c.id
-      WHERE t.id = ?
-    `).get(result.lastInsertRowid);
+    const newTask = await addTask({
+      title: title.trim(),
+      completed: false,
+      category_id: category_id || null,
+      priority: taskPriority as 'low' | 'medium' | 'high',
+      due_date: formattedDueDate
+    });
     
     return NextResponse.json(newTask, { status: 201 });
   } catch (error) {

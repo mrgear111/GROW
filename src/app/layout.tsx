@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { initializeDatabase } from "@/lib/firebaseDb";
+
+// Initialize Firebase database with default data
+if (typeof window === 'undefined') {
+  // Only run on server
+  initializeDatabase().catch(console.error);
+}
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
