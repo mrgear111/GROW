@@ -6,13 +6,8 @@ import CategorySelector from './CategorySelector';
 import DatePicker from './DatePicker';
 import PrioritySelector from './PrioritySelector';
 import { motion } from 'framer-motion';
-
-interface TaskItemProps {
-  task: Task;
-  onToggleComplete: (id: number, completed: boolean) => Promise<void>;
-  onDelete: (id: number) => Promise<void>;
-  onUpdate: (id: number, updates: Partial<Task>) => Promise<void>;
-}
+import { safeFirstChar, safeString } from '@/lib/utils';
+import { TaskItemProps } from '@/types/task';
 
 export default function TaskItem({ 
   task, 
@@ -24,6 +19,21 @@ export default function TaskItem({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
+
+  // Ensure task object exists and has expected properties
+  if (!task) {
+    console.error('TaskItem received undefined task');
+    return null; // Don't render anything if task is undefined
+  }
+  
+  // Safely handle potentially undefined category_color
+  const categoryColor = task.category_color || '#9ca3af'; // Default gray color
+  
+  // Safely handle potentially undefined category_name
+  const categoryName = safeString(task.category_name, 'No Category');
+  
+  // Get the first character safely
+  const categoryInitial = safeFirstChar(categoryName, '?');
 
   const handleToggle = async () => {
     setIsLoading(true);
@@ -46,7 +56,7 @@ export default function TaskItem({
   };
 
   const handleUpdateTitle = async () => {
-    if (editTitle.trim() === '') return;
+    if (editTitle.trim() === '' || !onUpdate) return;
     
     setIsLoading(true);
     try {
@@ -58,6 +68,8 @@ export default function TaskItem({
   };
 
   const handleUpdateCategory = async (categoryId: number | null) => {
+    if (!onUpdate) return;
+    
     setIsLoading(true);
     try {
       await onUpdate(task.id, { category_id: categoryId });
@@ -67,6 +79,8 @@ export default function TaskItem({
   };
 
   const handleUpdatePriority = async (priority: 'low' | 'medium' | 'high') => {
+    if (!onUpdate) return;
+    
     setIsLoading(true);
     try {
       await onUpdate(task.id, { priority });
@@ -76,6 +90,8 @@ export default function TaskItem({
   };
 
   const handleUpdateDueDate = async (dueDate: string | null) => {
+    if (!onUpdate) return;
+    
     setIsLoading(true);
     try {
       await onUpdate(task.id, { due_date: dueDate });

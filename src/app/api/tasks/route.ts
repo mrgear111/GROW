@@ -60,7 +60,8 @@ export async function POST(request: NextRequest) {
       completed: false,
       category_id: category_id || null,
       priority: taskPriority as 'low' | 'medium' | 'high',
-      due_date: formattedDueDate
+      due_date: formattedDueDate,
+      updated_at: new Date().toISOString()
     });
     
     return NextResponse.json(newTask, { status: 201 });

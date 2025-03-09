@@ -30,7 +30,7 @@ export async function PATCH(
     }
     
     try {
-      const updatedTask = await updateTask(Number(id), filteredUpdates);
+      const updatedTask = await updateTask(id, filteredUpdates);
       return NextResponse.json(updatedTask);
     } catch (dbError) {
       console.error('Database error during update:', dbError);
@@ -53,8 +53,9 @@ export async function DELETE(
 ) {
   try {
     const id = context.params.id;
+    console.log(`API route: Deleting task with ID: ${id}`);
     
-    await deleteTask(Number(id));
+    await deleteTask(id);
     
     return NextResponse.json({ success: true });
   } catch (error) {

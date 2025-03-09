@@ -34,6 +34,22 @@ export default function Home() {
     fetchTasks();
   }, [filterCategory, showCompleted, view]);
 
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Caught error:', event.error);
+      console.log('Error details:', {
+        message: event.error.message,
+        stack: event.error.stack
+      });
+    };
+
+    window.addEventListener('error', handleError);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+    };
+  }, []);
+
   const fetchCategories = async () => {
     try {
       const response = await fetch('/api/categories');
@@ -153,9 +169,9 @@ export default function Home() {
     }
   };
 
-  const handleToggleComplete = async (id: number, completed: boolean) => {
+  const handleToggleComplete = async (id: string | number, completed: boolean) => {
     try {
-      console.log(`Toggling task ${id} to ${completed ? 'completed' : 'incomplete'}`);
+      setIsLoading(true);
       
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'PATCH',
@@ -165,31 +181,20 @@ export default function Home() {
         body: JSON.stringify({ completed }),
       });
 
-      console.log('Response status:', response.status);
-      
-      // Check content type to handle non-JSON responses
-      const contentType = response.headers.get('content-type');
-      console.log('Content type:', contentType);
-      
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned an invalid response format');
-      }
-
-      const data = await response.json();
-      console.log('Response data:', data);
-      
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update task');
+        throw new Error('Failed to update task');
       }
 
+      const updatedTask = await response.json();
+      
       // Update the task in the local state
       setTasks(
         tasks.map((task) =>
-          task.id === id ? { ...task, ...data } : task
+          task.id === id ? { ...task, ...updatedTask } : task
         )
       );
       
-      // Celebrate completion!
+      // Show confetti if task was completed
       if (completed) {
         setCompletedCount(prev => prev + 1);
         setStreak(prev => prev + 1);
@@ -211,10 +216,12 @@ export default function Home() {
       setError(err instanceof Error ? err.message : 'Failed to update task. Please try again.');
       // Re-fetch tasks to ensure UI is in sync with server
       await fetchTasks();
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteTask = async (id: number) => {
+  const handleDeleteTask = async (id: string | number) => {
     try {
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'DELETE',
@@ -231,7 +238,7 @@ export default function Home() {
     }
   };
 
-  const handleUpdateTask = async (id: number, updates: Partial<Task>) => {
+  const handleUpdateTask = async (id: string | number, updates: Partial<Task>) => {
     try {
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'PATCH',
