@@ -7,6 +7,8 @@ import CategorySelector from '@/components/CategorySelector';
 import DatePicker from '@/components/DatePicker';
 import PrioritySelector from '@/components/PrioritySelector';
 import { motion } from 'framer-motion';
+import StreakCalendar from '@/components/StreakCalendar';
+import { calculateStreak } from '@/lib/streakUtils';
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -27,6 +29,13 @@ export default function Home() {
   const [streak, setStreak] = useState(0);
   const [showMotivation, setShowMotivation] = useState(false);
   const [motivationalQuote, setMotivationalQuote] = useState('');
+
+  // Add this to your state variables
+  const [streakData, setStreakData] = useState({
+    currentStreak: 0,
+    longestStreak: 0,
+    completionHistory: [] as { date: string; completed: boolean }[]
+  });
 
   // Fetch tasks and categories on component mount
   useEffect(() => {
@@ -111,6 +120,10 @@ export default function Home() {
       }
       
       setTasks(filteredData);
+      
+      // After fetching tasks, calculate streak
+      const streakData = calculateStreak(filteredData);
+      setStreakData(streakData);
     } catch (err) {
       console.error('Error fetching tasks:', err);
       setError(err instanceof Error ? err.message : 'Failed to load tasks. Please try again.');
@@ -284,6 +297,12 @@ export default function Home() {
     return Math.round((completed / tasks.length) * 100);
   };
 
+  // Also update streak when tasks change
+  useEffect(() => {
+    const data = calculateStreak(tasks);
+    setStreakData(data);
+  }, [tasks]);
+
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
       {/* Motivational banner */}
@@ -297,6 +316,11 @@ export default function Home() {
           <p className="text-xl font-bold">{motivationalQuote}</p>
         </motion.div>
       )}
+
+      {/* Streak Calendar */}
+      <div className="mb-8">
+        <StreakCalendar tasks={tasks} />
+      </div>
 
       {/* Progress Dashboard */}
       <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg">
@@ -314,14 +338,26 @@ export default function Home() {
             <p className="mt-1 text-sm">{calculateProgress()}% complete</p>
           </div>
           
-          <div className="bg-white/20 p-4 rounded-lg backdrop-blur-sm">
-            <h3 className="text-lg font-semibold">Today's Completed</h3>
-            <p className="text-3xl font-bold">{completedCount}</p>
+          <div className="bg-purple-500 text-white p-6 rounded-lg shadow">
+            <h2 className="text-xl font-semibold mb-2">Current Streak</h2>
+            <div className="flex items-center">
+              <svg className="w-8 h-8 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
+              </svg>
+              <span className="text-3xl font-bold">
+                {streakData.currentStreak} days
+              </span>
+            </div>
+            <p className="text-sm mt-2 text-purple-100">
+              {streakData.currentStreak > 0 
+                ? "Keep it up! You're on a roll!" 
+                : "Complete all of today's tasks to start a streak!"}
+            </p>
           </div>
           
           <div className="bg-white/20 p-4 rounded-lg backdrop-blur-sm">
-            <h3 className="text-lg font-semibold">Current Streak</h3>
-            <p className="text-3xl font-bold">{streak} days</p>
+            <h3 className="text-lg font-semibold">Today's Completed</h3>
+            <p className="text-3xl font-bold">{completedCount}</p>
           </div>
         </div>
       </div>
