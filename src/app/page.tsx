@@ -253,6 +253,10 @@ export default function Home() {
 
   const handleUpdateTask = async (id: string | number, updates: Partial<Task>) => {
     try {
+      console.log(`Updating task ${id} with:`, updates);
+      
+      setIsLoading(true);
+      
       const response = await fetch(`/api/tasks/${id}`, {
         method: 'PATCH',
         headers: {
@@ -264,16 +268,24 @@ export default function Home() {
       if (!response.ok) {
         throw new Error('Failed to update task');
       }
-
+      
       const updatedTask = await response.json();
-      setTasks(
-        tasks.map((task) =>
-          task.id === id ? { ...task, ...updatedTask } : task
+      console.log('Task updated successfully:', updatedTask);
+
+      // Update the local state with the updated task
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id.toString() === id.toString() ? { ...task, ...updatedTask } : task
         )
       );
+      
+      return updatedTask;
     } catch (err) {
       console.error('Error updating task:', err);
-      setError('Failed to update task. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to update task. Please try again.');
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -361,7 +373,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-      
+
       {/* GitHub-like Streak Calendar */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
         <div className="p-4 sm:p-6">
@@ -559,8 +571,8 @@ export default function Home() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Category
                     </label>
-                    <CategorySelector 
-                      selectedCategoryId={newTaskCategory} 
+                    <CategorySelector
+                      selectedCategoryId={newTaskCategory}
                       onChange={setNewTaskCategory}
                     />
                   </div>
@@ -569,9 +581,9 @@ export default function Home() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Priority
                     </label>
-                    <PrioritySelector 
-                      value={newTaskPriority} 
-                      onChange={setNewTaskPriority} 
+                    <PrioritySelector
+                      value={newTaskPriority}
+                      onChange={setNewTaskPriority}
                     />
                   </div>
                   
@@ -579,9 +591,9 @@ export default function Home() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Due Date
                     </label>
-                    <DatePicker 
-                      value={newTaskDueDate} 
-                      onChange={setNewTaskDueDate} 
+                    <DatePicker
+                      value={newTaskDueDate}
+                      onChange={setNewTaskDueDate}
                     />
                   </div>
                 </motion.div>
@@ -598,39 +610,39 @@ export default function Home() {
               <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                 {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
               </span>
-            </div>
+        </div>
             
             {isLoading && tasks.length === 0 ? (
               <div className="flex justify-center items-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-              </div>
-            ) : tasks.length === 0 ? (
+          </div>
+        ) : tasks.length === 0 ? (
               <div className="text-center py-12">
                 <svg className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
                 <p className="mt-2 text-base sm:text-lg font-medium text-gray-600 dark:text-gray-300">No tasks found</p>
                 <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">Try changing your filters or add a new task</p>
-              </div>
-            ) : (
+          </div>
+        ) : (
               <motion.div layout className="space-y-2 sm:space-y-3">
-                {tasks.map((task, index) => (
-                  <motion.div
-                    key={task.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <TaskItem
-                      task={task}
-                      onToggleComplete={handleToggleComplete}
-                      onDelete={handleDeleteTask}
-                      onUpdate={handleUpdateTask}
-                    />
-                  </motion.div>
-                ))}
+            {tasks.map((task, index) => (
+              <motion.div
+                key={task.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <TaskItem
+                  task={task}
+                  onToggleComplete={handleToggleComplete}
+                  onDelete={handleDeleteTask}
+                  onUpdate={handleUpdateTask}
+                />
               </motion.div>
-            )}
+            ))}
+          </motion.div>
+        )}
           </div>
         </div>
       </div>

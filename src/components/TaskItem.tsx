@@ -20,6 +20,15 @@ export default function TaskItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
 
+  // Debug logging
+  console.log('TaskItem rendering with task:', {
+    id: task.id,
+    title: task.title,
+    category_id: task.category_id,
+    category_name: task.category_name,
+    category_color: task.category_color
+  });
+
   // Ensure task object exists and has expected properties
   if (!task) {
     console.error('TaskItem received undefined task');
@@ -70,9 +79,11 @@ export default function TaskItem({
   const handleUpdateCategory = async (categoryId: number | null) => {
     if (!onUpdate) return;
     
+    console.log('Updating category to:', categoryId);
     setIsLoading(true);
     try {
-      await onUpdate(task.id, { category_id: categoryId });
+      const updatedTask = await onUpdate(task.id, { category_id: categoryId });
+      console.log('Task after update:', updatedTask);
     } finally {
       setIsLoading(false);
     }
@@ -229,21 +240,19 @@ export default function TaskItem({
             )}
             
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:gap-2">
-              {task.category_id && (
+              <span 
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                style={{ 
+                  backgroundColor: categoryColor ? `${categoryColor}20` : '#e5e7eb',
+                  color: categoryColor || '#374151'
+                }}
+              >
                 <span 
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                  style={{ 
-                    backgroundColor: task.category_color ? `${task.category_color}20` : '#e5e7eb',
-                    color: task.category_color || '#374151'
-                  }}
-                >
-                  <span 
-                    className="mr-1 h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full"
-                    style={{ backgroundColor: task.category_color || '#374151' }}
-                  ></span>
-                  {task.category_name}
-                </span>
-              )}
+                  className="mr-1 h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full"
+                  style={{ backgroundColor: categoryColor || '#374151' }}
+                ></span>
+                {categoryName}
+              </span>
               
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityBadgeClasses(task.priority)}`}>
                 {task.priority === 'high' && (

@@ -138,47 +138,60 @@ export const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at
     updated_at: task.updated_at || new Date().toISOString() // Use provided value or generate new one
   };
   
-  await set(newTaskRef, newTask);
-  
   // If there's a category_id, fetch the category details
-  let categoryName = null;
-  let categoryColor = null;
-  
   if (task.category_id) {
-    const categoryRef = ref(db, `categories/${task.category_id}`);
-    const categorySnapshot = await get(categoryRef);
-    if (categorySnapshot.exists()) {
-      const category = categorySnapshot.val();
-      categoryName = category.name;
-      categoryColor = category.color;
+    // Get all categories and find the matching one
+    const categoriesRef = ref(db, 'categories');
+    const categoriesSnapshot = await get(categoriesRef);
+    
+    if (categoriesSnapshot.exists()) {
+      categoriesSnapshot.forEach((childSnapshot) => {
+        const key = childSnapshot.key;
+        const category = childSnapshot.val();
+        
+        // Check if this is the category we're looking for - fix null check
+        if (key && task.category_id && key === task.category_id.toString()) {
+          // Add category info to the new task
+          newTask.category_name = category.name;
+          newTask.category_color = category.color;
+          console.log(`Found category: ${category.name} with color ${category.color}`);
+          return true; // Break the forEach loop
+        }
+      });
     }
   }
   
-  // Ensure ID is a valid number
-  let taskId: number;
-  if (newTaskRef.key) {
-    const numericId = Number(newTaskRef.key);
-    taskId = !isNaN(numericId) ? numericId : Date.now();
-  } else {
-    taskId = Date.now();
+  // Set default category info if not found or not provided
+  if (!newTask.category_name) {
+    newTask.category_name = 'No Category';
+    newTask.category_color = '#9ca3af';
   }
   
+  console.log('Saving task with data:', newTask);
+  
+  // Now save the task with category info included
+  await set(newTaskRef, newTask);
+  
+  // Fix the type error with firebase_key
+  const firebaseKey = newTaskRef.key || undefined;
+  
+  // Return the complete task object
   return {
-    id: taskId,
-    ...newTask,
-    category_name: categoryName,
-    category_color: categoryColor
+    id: newTaskRef.key as string,
+    firebase_key: firebaseKey,
+    ...newTask
   };
 };
 
 export const updateTask = async (id: number | string, updates: Partial<Task>): Promise<Task> => {
-  console.log(`Updating task with ID: ${id}`);
+  console.log(`Updating task with ID: ${id}`, updates);
   
   // First, find the task by ID to get its Firebase key
   const tasksRef = ref(db, 'tasks');
   const snapshot = await get(tasksRef);
   
   let taskKey = null;
+  let existingTask: Record<string, any> | null = null;
   
   if (snapshot.exists()) {
     snapshot.forEach((childSnapshot) => {
@@ -190,7 +203,8 @@ export const updateTask = async (id: number | string, updates: Partial<Task>): P
       if ((task && task.id && task.id.toString() === id.toString()) || 
           (key === id)) {
         taskKey = key;
-        console.log(`Found task with key: ${taskKey}`);
+        existingTask = task;
+        console.log(`Found task with key: ${taskKey}`, existingTask);
         return true; // Break the forEach loop
       }
     });
@@ -206,11 +220,57 @@ export const updateTask = async (id: number | string, updates: Partial<Task>): P
     processedUpdates.completed = processedUpdates.completed === true;
   }
   
-  // Add updated_at timestamp
+  // Create the merged task with existing data and updates
   const updatedTask = {
+    ...(existingTask || {}),
     ...processedUpdates,
     updated_at: new Date().toISOString()
   };
+  
+  // If category_id is being updated, fetch the category details
+  if (processedUpdates.category_id !== undefined) {
+    // Get all categories and find the matching one
+    const categoriesRef = ref(db, 'categories');
+    const categoriesSnapshot = await get(categoriesRef);
+    
+    console.log(`Looking for category with ID: ${processedUpdates.category_id}`);
+    
+    if (categoriesSnapshot.exists() && processedUpdates.category_id !== null) {
+      let categoryFound = false;
+      
+      categoriesSnapshot.forEach((childSnapshot) => {
+        const key = childSnapshot.key;
+        const category = childSnapshot.val();
+        
+        console.log(`Checking category: ${key}`, category);
+        
+        // Check if this is the category we're looking for - fix null check
+        if (key && processedUpdates.category_id && key === processedUpdates.category_id.toString()) {
+          console.log(`Found category: ${category.name} with color ${category.color}`);
+          
+          // Add category info to the updates
+          updatedTask.category_name = category.name;
+          updatedTask.category_color = category.color;
+          categoryFound = true;
+          
+          return true; // Break the forEach loop
+        }
+      });
+      
+      if (!categoryFound) {
+        console.warn(`Category with ID ${processedUpdates.category_id} not found`);
+        // Default to "No Category" if the category is not found
+        updatedTask.category_name = 'No Category';
+        updatedTask.category_color = '#9ca3af';
+      }
+    } else if (processedUpdates.category_id === null) {
+      // If category is being removed, clear the category info
+      updatedTask.category_name = 'No Category';
+      updatedTask.category_color = '#9ca3af';
+    }
+  }
+  
+  console.log('Final task updates to save:', updatedTask);
   
   // Update the task using the Firebase key
   const taskRef = ref(db, `tasks/${taskKey}`);
@@ -223,28 +283,15 @@ export const updateTask = async (id: number | string, updates: Partial<Task>): P
   }
   
   const task = updatedSnapshot.val();
-  
-  // If there's a category_id, fetch the category details
-  let categoryName = null;
-  let categoryColor = null;
-  
-  if (task.category_id) {
-    const categoryRef = ref(db, `categories/${task.category_id}`);
-    const categorySnapshot = await get(categoryRef);
-    if (categorySnapshot.exists()) {
-      const category = categorySnapshot.val();
-      categoryName = category.name;
-      categoryColor = category.color;
-    }
-  }
+  console.log('Task after update:', task);
   
   return {
     id: id,
     firebase_key: taskKey,
     ...task,
     completed: task.completed === true,
-    category_name: categoryName || 'No Category',
-    category_color: categoryColor || '#9ca3af'
+    category_name: task.category_name || 'No Category',
+    category_color: task.category_color || '#9ca3af'
   };
 };
 
@@ -317,4 +364,94 @@ export const cleanupDatabase = async (): Promise<void> => {
   }
   
   console.log('Database cleanup completed');
-}; 
+};
+
+// New function to fix all tasks in the database
+export const fixAllTaskCategories = async (): Promise<void> => {
+  console.log('Starting to fix all task categories...');
+  
+  // Get all tasks
+  const tasksRef = ref(db, 'tasks');
+  const tasksSnapshot = await get(tasksRef);
+  
+  if (!tasksSnapshot.exists()) {
+    console.log('No tasks found in the database.');
+    return;
+  }
+  
+  // Get all categories
+  const categoriesRef = ref(db, 'categories');
+  const categoriesSnapshot = await get(categoriesRef);
+  
+  const categories: Record<string, { name: string, color: string }> = {};
+  
+  if (categoriesSnapshot.exists()) {
+    categoriesSnapshot.forEach((childSnapshot) => {
+      const key = childSnapshot.key;
+      const category = childSnapshot.val();
+      if (key) {
+        categories[key] = {
+          name: category.name,
+          color: category.color
+        };
+      }
+    });
+  }
+  
+  console.log('Found categories:', categories);
+  
+  // Fix each task
+  const updatePromises: Promise<void>[] = [];
+  
+  tasksSnapshot.forEach((childSnapshot) => {
+    const key = childSnapshot.key;
+    const task = childSnapshot.val();
+    
+    if (!key || !task) return;
+    
+    let needsUpdate = false;
+    const updates: Record<string, any> = {};
+    
+    // Check if this task has a category_id but missing category info
+    if (task.category_id) {
+      const categoryKey = task.category_id.toString();
+      const category = categories[categoryKey];
+      
+      if (category) {
+        // Category exists, make sure name and color are set
+        if (task.category_name !== category.name) {
+          updates.category_name = category.name;
+          needsUpdate = true;
+        }
+        
+        if (task.category_color !== category.color) {
+          updates.category_color = category.color;
+          needsUpdate = true;
+        }
+      } else {
+        // Category doesn't exist, set to No Category
+        updates.category_name = 'No Category';
+        updates.category_color = '#9ca3af';
+        needsUpdate = true;
+      }
+    } else if (!task.category_name || !task.category_color) {
+      // No category_id and missing category info
+      updates.category_name = 'No Category';
+      updates.category_color = '#9ca3af';
+      needsUpdate = true;
+    }
+    
+    if (needsUpdate) {
+      console.log(`Fixing task ${key}:`, updates);
+      const taskRef = ref(db, `tasks/${key}`);
+      updatePromises.push(update(taskRef, updates));
+    }
+  });
+  
+  if (updatePromises.length > 0) {
+    await Promise.all(updatePromises);
+    console.log(`Fixed ${updatePromises.length} tasks.`);
+  } else {
+    console.log('All tasks already have correct category information.');
+  }
+};
