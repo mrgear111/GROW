@@ -61,7 +61,14 @@ export const addCategory = async (category: Omit<Category, 'id'>): Promise<Categ
 };
 
 // Tasks API
-export const getTasks = async (filters: { categoryId?: string; completed?: boolean } = {}): Promise<Task[]> => {
+export const getTasks = async (filters: { 
+  categoryId?: string; 
+  completed?: boolean;
+  date?: string;        // For filtering by specific date
+  dateField?: 'due_date' | 'created_at'; // Which date field to filter by
+  startDate?: string;   // For date range filtering
+  endDate?: string;     // For date range filtering
+} = {}): Promise<Task[]> => {
   const tasksRef = ref(db, 'tasks');
   const snapshot = await get(tasksRef);
   
@@ -108,6 +115,29 @@ export const getTasks = async (filters: { categoryId?: string; completed?: boole
   
   if (filters.completed !== undefined) {
     tasks = tasks.filter(task => task.completed === filters.completed);
+  }
+  
+  // Filter by specific date if provided
+  if (filters.date) {
+    const dateField = filters.dateField || 'due_date';
+    tasks = tasks.filter(task => {
+      if (!task[dateField]) return false;
+      // Compare only the date part (YYYY-MM-DD)
+      return task[dateField].split('T')[0] === filters.date;
+    });
+  }
+  
+  // Filter by date range if provided
+  if (filters.startDate && filters.endDate) {
+    const dateField = filters.dateField || 'due_date';
+    const startDate = new Date(filters.startDate);
+    const endDate = new Date(filters.endDate);
+    
+    tasks = tasks.filter(task => {
+      if (!task[dateField]) return false;
+      const taskDate = new Date(task[dateField]);
+      return taskDate >= startDate && taskDate <= endDate;
+    });
   }
   
   // Sort tasks: first by due date (null last), then by creation date (newest first)

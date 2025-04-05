@@ -5,6 +5,7 @@ import { Task, Category } from '@/types/task';
 import TaskItem from '@/components/TaskItem';
 import CategorySelector from '@/components/CategorySelector';
 import DatePicker from '@/components/DatePicker';
+import DateSelector from '@/components/DateSelector';
 import PrioritySelector from '@/components/PrioritySelector';
 import { motion } from 'framer-motion';
 import StreakCalendar from '@/components/StreakCalendar';
@@ -36,6 +37,13 @@ export default function Home() {
     longestStreak: 0,
     completionHistory: [] as { date: string; completed: boolean }[]
   });
+
+  // New state for Previous Tasks section
+  const [historyTasks, setHistoryTasks] = useState<Task[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [dateField, setDateField] = useState<'due_date' | 'created_at'>('due_date');
+  const [showHistorySection, setShowHistorySection] = useState(false);
 
   // Fetch tasks and categories on component mount
   useEffect(() => {
@@ -314,6 +322,51 @@ export default function Home() {
     const data = calculateStreak(tasks);
     setStreakData(data);
   }, [tasks]);
+
+  // New function to fetch historical tasks by date
+  const fetchHistoricalTasks = async () => {
+    if (!selectedDate) {
+      setHistoryTasks([]);
+      return;
+    }
+    
+    setIsHistoryLoading(true);
+    try {
+      const params = new URLSearchParams();
+      
+      // Add date filters
+      params.append('date', selectedDate);
+      params.append('dateField', dateField);
+      
+      // Add category filter if selected
+      if (filterCategory !== null) {
+        params.append('categoryId', filterCategory.toString());
+      }
+      
+      const url = `/api/tasks?${params.toString()}`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch historical tasks');
+      }
+      
+      const data = await response.json();
+      setHistoryTasks(data);
+    } catch (err) {
+      console.error('Error fetching historical tasks:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load historical tasks. Please try again.');
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  // Call fetchHistoricalTasks when selectedDate or dateField changes
+  useEffect(() => {
+    if (showHistorySection) {
+      fetchHistoricalTasks();
+    }
+  }, [selectedDate, dateField, showHistorySection, filterCategory]);
 
   return (
     <div className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 space-y-6 md:space-y-8">
@@ -610,39 +663,155 @@ export default function Home() {
               <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                 {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
               </span>
-        </div>
+            </div>
             
             {isLoading && tasks.length === 0 ? (
               <div className="flex justify-center items-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          </div>
-        ) : tasks.length === 0 ? (
+              </div>
+            ) : tasks.length === 0 ? (
               <div className="text-center py-12">
                 <svg className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
                 <p className="mt-2 text-base sm:text-lg font-medium text-gray-600 dark:text-gray-300">No tasks found</p>
                 <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">Try changing your filters or add a new task</p>
-          </div>
-        ) : (
+              </div>
+            ) : (
               <motion.div layout className="space-y-2 sm:space-y-3">
-            {tasks.map((task, index) => (
-              <motion.div
-                key={task.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <TaskItem
-                  task={task}
-                  onToggleComplete={handleToggleComplete}
-                  onDelete={handleDeleteTask}
-                  onUpdate={handleUpdateTask}
-                />
+                {tasks.map((task, index) => (
+                  <motion.div
+                    key={task.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <TaskItem
+                      task={task}
+                      onToggleComplete={handleToggleComplete}
+                      onDelete={handleDeleteTask}
+                      onUpdate={handleUpdateTask}
+                    />
+                  </motion.div>
+                ))}
               </motion.div>
-            ))}
-          </motion.div>
-        )}
+            )}
+          </div>
+          
+          {/* Previous Tasks Section */}
+          <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold">
+                Previous Tasks
+              </h2>
+              <button
+                onClick={() => setShowHistorySection(!showHistorySection)}
+                className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium flex items-center"
+              >
+                {showHistorySection ? (
+                  <>
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                    Hide
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    Show
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {showHistorySection && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <DateSelector
+                    selectedDate={selectedDate}
+                    onDateChange={setSelectedDate}
+                    label="Select Date"
+                  />
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Filter By
+                    </label>
+                    <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
+                      <button
+                        onClick={() => setDateField('due_date')}
+                        className={`flex-1 py-2 px-3 text-xs sm:text-sm font-medium ${
+                          dateField === 'due_date'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        Due Date
+                      </button>
+                      <button
+                        onClick={() => setDateField('created_at')}
+                        className={`flex-1 py-2 px-3 text-xs sm:text-sm font-medium ${
+                          dateField === 'created_at'
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        Created Date
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                {isHistoryLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : selectedDate && historyTasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <svg className="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <p className="mt-2 text-base font-medium text-gray-600 dark:text-gray-300">No tasks found for this date</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Try selecting a different date</p>
+                  </div>
+                ) : !selectedDate ? (
+                  <div className="text-center py-8">
+                    <svg className="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="mt-2 text-base font-medium text-gray-600 dark:text-gray-300">Select a date to view tasks</p>
+                  </div>
+                ) : (
+                  <motion.div layout className="space-y-2">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {historyTasks.length} {historyTasks.length === 1 ? 'task' : 'tasks'} 
+                        {dateField === 'due_date' ? ' due on ' : ' created on '}
+                        {new Date(selectedDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                    
+                    {historyTasks.map((task, index) => (
+                      <motion.div
+                        key={task.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                      >
+                        <TaskItem
+                          task={task}
+                          onToggleComplete={handleToggleComplete}
+                          onDelete={handleDeleteTask}
+                          onUpdate={handleUpdateTask}
+                        />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

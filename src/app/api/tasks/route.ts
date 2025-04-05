@@ -7,8 +7,19 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const categoryId = searchParams.get('categoryId');
     const completed = searchParams.get('completed');
+    const date = searchParams.get('date');
+    const dateField = searchParams.get('dateField');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
     
-    const filters: { categoryId?: string; completed?: boolean } = {};
+    const filters: { 
+      categoryId?: string; 
+      completed?: boolean;
+      date?: string;
+      dateField?: 'due_date' | 'created_at';
+      startDate?: string;
+      endDate?: string;
+    } = {};
     
     if (categoryId) {
       filters.categoryId = categoryId;
@@ -16,6 +27,23 @@ export async function GET(request: NextRequest) {
     
     if (completed !== null) {
       filters.completed = completed === 'true';
+    }
+    
+    // Add date-based filters
+    if (date) {
+      filters.date = date;
+    }
+    
+    if (dateField && (dateField === 'due_date' || dateField === 'created_at')) {
+      filters.dateField = dateField;
+    }
+    
+    if (startDate) {
+      filters.startDate = startDate;
+    }
+    
+    if (endDate) {
+      filters.endDate = endDate;
     }
     
     const tasks = await getTasks(filters);
