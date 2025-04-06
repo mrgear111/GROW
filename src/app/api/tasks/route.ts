@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 // POST a new task
 export async function POST(request: NextRequest) {
   try {
-    const { title, category_id, priority, due_date } = await request.json();
+    const { title, category_id, priority, due_date, due_time } = await request.json();
     
     if (!title || typeof title !== 'string' || title.trim() === '') {
       return NextResponse.json({ error: 'Task title is required' }, { status: 400 });
@@ -82,6 +82,15 @@ export async function POST(request: NextRequest) {
         console.error('Invalid date format:', e);
       }
     }
+
+    // Validate due_time format if provided (HH:mm)
+    let formattedDueTime = null;
+    if (due_time) {
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (timeRegex.test(due_time)) {
+        formattedDueTime = due_time;
+      }
+    }
     
     const newTask = await addTask({
       title: title.trim(),
@@ -89,6 +98,7 @@ export async function POST(request: NextRequest) {
       category_id: category_id || null,
       priority: taskPriority as 'low' | 'medium' | 'high',
       due_date: formattedDueDate,
+      due_time: formattedDueTime,
       updated_at: new Date().toISOString()
     });
     

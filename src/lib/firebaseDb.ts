@@ -99,6 +99,7 @@ export const getTasks = async (filters: {
       category_color: task.category_color || '#9ca3af',
       priority: task.priority || 'medium',
       due_date: task.due_date || null,
+      due_time: task.due_time || null,
       created_at: task.created_at || new Date().toISOString(),
       updated_at: task.updated_at || new Date().toISOString()
     };

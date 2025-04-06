@@ -14,7 +14,7 @@ export async function PATCH(
     console.log('Updates received:', updates);
     
     // Validate updates
-    const validFields = ['title', 'completed', 'category_id', 'priority', 'due_date'];
+    const validFields = ['title', 'completed', 'category_id', 'priority', 'due_date', 'due_time'];
     const filteredUpdates = Object.keys(updates)
       .filter(key => validFields.includes(key))
       .reduce((obj, key) => {

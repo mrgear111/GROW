@@ -45,6 +45,7 @@ db.exec(`
     category_id INTEGER,
     priority TEXT DEFAULT 'medium',
     due_date TEXT,
+    due_time TEXT,
     FOREIGN KEY (category_id) REFERENCES categories(id)
   )
 `);
@@ -70,7 +71,7 @@ for (const category of defaultCategories) {
 try {
   // Verify tasks table has all required columns
   const taskColumns = db.prepare("PRAGMA table_info(tasks)").all() as Array<{ name: string }>;
-  const requiredColumns = ['id', 'title', 'completed', 'created_at', 'category_id', 'priority', 'due_date', 'updated_at'];
+  const requiredColumns = ['id', 'title', 'completed', 'created_at', 'category_id', 'priority', 'due_date', 'due_time', 'updated_at'];
   
   const missingColumns = requiredColumns.filter(col => 
     !taskColumns.some(c => c.name === col)
@@ -111,6 +112,7 @@ try {
           category_id INTEGER,
           priority TEXT DEFAULT 'medium',
           due_date TEXT,
+          due_time TEXT,
           FOREIGN KEY (category_id) REFERENCES categories(id)
         )
       `);

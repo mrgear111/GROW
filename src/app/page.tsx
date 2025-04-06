@@ -5,6 +5,7 @@ import { Task, Category } from '@/types/task';
 import TaskItem from '@/components/TaskItem';
 import CategorySelector from '@/components/CategorySelector';
 import DatePicker from '@/components/DatePicker';
+import TimePicker from '@/components/TimePicker';
 import DateSelector from '@/components/DateSelector';
 import PrioritySelector from '@/components/PrioritySelector';
 import { motion } from 'framer-motion';
@@ -18,6 +19,7 @@ export default function Home() {
   const [newTaskCategory, setNewTaskCategory] = useState<number | null>(null);
   const [newTaskPriority, setNewTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [newTaskDueDate, setNewTaskDueDate] = useState<string | null>(null);
+  const [newTaskDueTime, setNewTaskDueTime] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<number | null>(null);
@@ -111,23 +113,46 @@ export default function Home() {
       
       // Client-side filtering for views
       let filteredData = [...data];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
+      // Separate current day tasks from previous days' tasks
+      const currentDayTasks = filteredData.filter((task: Task) => {
+        if (!task.due_date) return true; // Tasks without due date stay in current tasks
+        const dueDate = new Date(task.due_date);
+        dueDate.setHours(0, 0, 0, 0);
+        return dueDate.getTime() >= today.getTime() || 
+               (dueDate.getTime() < today.getTime() && !task.completed); // Keep overdue but not completed tasks in current
+      });
+      
+      const previousDaysTasks = filteredData.filter((task: Task) => {
+        if (!task.due_date) return false;
+        const dueDate = new Date(task.due_date);
+        dueDate.setHours(0, 0, 0, 0);
+        return dueDate.getTime() < today.getTime() && task.completed; // Only completed tasks from previous days
+      });
+      
+      // Set the appropriate tasks based on view
       if (view === 'today') {
-        const today = new Date().toISOString().split('T')[0];
-        filteredData = filteredData.filter((task: Task) => task.due_date === today);
+        const todayStr = today.toISOString().split('T')[0];
+        const todayTasks = filteredData.filter((task: Task) => task.due_date === todayStr);
+        setTasks(todayTasks);
       } else if (view === 'upcoming') {
-        const today = new Date();
         const nextWeek = new Date(today);
         nextWeek.setDate(today.getDate() + 7);
         
-        filteredData = filteredData.filter((task: Task) => {
+        const upcomingTasks = filteredData.filter((task: Task) => {
           if (!task.due_date) return false;
           const dueDate = new Date(task.due_date);
           return dueDate >= today && dueDate <= nextWeek;
         });
+        setTasks(upcomingTasks);
+      } else {
+        setTasks(currentDayTasks);
       }
       
-      setTasks(filteredData);
+      // Set previous days' tasks
+      setHistoryTasks(previousDaysTasks);
       
       // After fetching tasks, calculate streak
       const streakData = calculateStreak(filteredData);
@@ -156,7 +181,8 @@ export default function Home() {
           title: newTaskTitle,
           category_id: newTaskCategory,
           priority: newTaskPriority,
-          due_date: newTaskDueDate
+          due_date: newTaskDueDate,
+          due_time: newTaskDueTime
         }),
       });
       
@@ -181,6 +207,7 @@ export default function Home() {
         setNewTaskCategory(null);
         setNewTaskPriority('medium');
         setNewTaskDueDate(null);
+        setNewTaskDueTime(null);
       }
     } catch (err) {
       console.error('Error adding task:', err);
@@ -352,7 +379,19 @@ export default function Home() {
       }
       
       const data = await response.json();
-      setHistoryTasks(data);
+      
+      // Filter tasks to only include completed tasks from previous days
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const filteredData = data.filter((task: Task) => {
+        if (!task.due_date) return false;
+        const dueDate = new Date(task.due_date);
+        dueDate.setHours(0, 0, 0, 0);
+        return dueDate.getTime() < today.getTime() && task.completed;
+      });
+      
+      setHistoryTasks(filteredData);
     } catch (err) {
       console.error('Error fetching historical tasks:', err);
       setError(err instanceof Error ? err.message : 'Failed to load historical tasks. Please try again.');
@@ -647,6 +686,16 @@ export default function Home() {
                     <DatePicker
                       value={newTaskDueDate}
                       onChange={setNewTaskDueDate}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Due Time
+                    </label>
+                    <TimePicker
+                      value={newTaskDueTime}
+                      onChange={setNewTaskDueTime}
                     />
                   </div>
                 </motion.div>

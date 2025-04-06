@@ -7,6 +7,7 @@ export interface Task {
   category_color?: string;
   priority: 'low' | 'medium' | 'high';
   due_date: string | null;
+  due_time: string | null;
   created_at: string;
   updated_at: string;
   firebase_key?: string;

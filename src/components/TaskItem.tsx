@@ -4,6 +4,7 @@ import { Task } from '@/types/task';
 import { useState } from 'react';
 import CategorySelector from './CategorySelector';
 import DatePicker from './DatePicker';
+import TimePicker from './TimePicker';
 import PrioritySelector from './PrioritySelector';
 import { motion } from 'framer-motion';
 import { safeFirstChar, safeString } from '@/lib/utils';
@@ -111,6 +112,17 @@ export default function TaskItem({
     }
   };
 
+  const handleUpdateDueTime = async (dueTime: string | null) => {
+    if (!onUpdate) return;
+    
+    setIsLoading(true);
+    try {
+      await onUpdate(task.id, { due_time: dueTime });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const formatDueDate = (dateString: string | null) => {
     if (!dateString) return null;
     
@@ -132,6 +144,18 @@ export default function TaskItem({
     } else {
       return dueDate.toLocaleDateString();
     }
+  };
+
+  const formatDueTime = (timeString: string | null) => {
+    if (!timeString) return null;
+    
+    // Format time in 12-hour format with AM/PM
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    
+    return `${hour12}:${minutes} ${ampm}`;
   };
 
   const getPriorityColor = (priority: string) => {
@@ -273,14 +297,17 @@ export default function TaskItem({
                 {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
               </span>
               
-              {task.due_date && (
-                <span className={`flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getDueDateBadgeClasses(task.due_date)}`}>
-                  <svg className="h-2.5 w-2.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  {formatDueDate(task.due_date)}
-                </span>
-              )}
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getDueDateBadgeClasses(task.due_date)}`}>
+                <svg className="h-2.5 w-2.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {task.due_date ? formatDueDate(task.due_date) : 'No due date'}
+                {task.due_time && (
+                  <span className="ml-1">
+                    • {formatDueTime(task.due_time)}
+                  </span>
+                )}
+              </span>
             </div>
           </div>
           
@@ -356,6 +383,16 @@ export default function TaskItem({
             <DatePicker 
               value={task.due_date} 
               onChange={handleUpdateDueDate} 
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Due Time
+            </label>
+            <TimePicker 
+              value={task.due_time} 
+              onChange={handleUpdateDueTime} 
             />
           </div>
         </motion.div>
